@@ -1,0 +1,202 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout
+    android:id="@+id/mainLayout"
+    xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:orientation="vertical"
+    android:padding="12dp">
+
+    <!-- スレッドタイトル表示 -->
+    <TextView
+        android:id="@+id/tvThreadTitle"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="未選択（ボタンを押してスレッドを選択してください）"
+        android:textSize="16sp"
+        android:textStyle="bold"
+        android:paddingBottom="6dp" />
+
+    <!-- ボタンエリア -->
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal"
+        android:paddingBottom="6dp">
+
+        <Button
+            android:id="@+id/btnSearchJantama"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:text="雀魂を検索" />
+
+        <Button
+            android:id="@+id/btnAllThreads"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:layout_marginStart="4dp"
+            android:text="麻雀板一覧" />
+
+        <Button
+            android:id="@+id/btnCheckNow"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:layout_marginStart="4dp"
+            android:text="今すぐ巡回" />
+    </LinearLayout>
+
+    <!-- 巡回間隔・カウントダウン・ErrorLog -->
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal"
+        android:gravity="center_vertical"
+        android:paddingBottom="6dp">
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="自動巡回: "
+            android:textSize="14sp"
+            android:singleLine="true" />
+
+        <Spinner
+            android:id="@+id/spinnerInterval"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content" />
+
+        <TextView
+            android:id="@+id/tvCountdown"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:layout_marginStart="4dp"
+            android:gravity="end"
+            android:text="自動巡回まで: 60秒"
+            android:textSize="14sp"
+            android:textColor="#666666"
+            android:singleLine="true" />
+
+        <Button
+            android:id="@+id/btnErrorLog"
+            android:layout_width="72dp"
+            android:layout_height="34dp"
+            android:layout_marginStart="6dp"
+            android:paddingStart="4dp"
+            android:paddingEnd="4dp"
+            android:text="ErrorLog"
+            android:textSize="10sp"
+            android:singleLine="true" />
+    </LinearLayout>
+
+    <!-- 通知音・バイブ・履歴クリア -->
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal"
+        android:gravity="center_vertical"
+        android:paddingBottom="6dp">
+
+        <androidx.appcompat.widget.SwitchCompat
+            android:id="@+id/switchSound"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="通知音 "
+            android:textSize="13sp" />
+
+        <androidx.appcompat.widget.SwitchCompat
+            android:id="@+id/switchVibrate"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginStart="8dp"
+            android:text="バイブ "
+            android:textSize="13sp" />
+
+        <Button
+            android:id="@+id/btnClearHistory"
+            android:layout_width="wrap_content"
+            android:layout_height="36dp"
+            android:layout_marginStart="8dp"
+            android:paddingStart="8dp"
+            android:paddingEnd="8dp"
+            android:text="履歴クリア"
+            android:textSize="12sp" />
+
+        <Button
+            android:id="@+id/btnYoutubeToggle"
+            android:layout_width="wrap_content"
+            android:layout_height="36dp"
+            android:layout_marginStart="6dp"
+            android:paddingStart="7dp"
+            android:paddingEnd="7dp"
+            android:text="YouTube ON"
+            android:textSize="11sp" />
+    </LinearLayout>
+
+    <View
+        android:layout_width="match_parent"
+        android:layout_height="1dp"
+        android:background="#CCCCCC"
+        android:layout_marginBottom="5dp" />
+
+    <!-- YouTube表示エリア：ON時はMainActivityが画面全面に切り替える。 -->
+    <LinearLayout
+        android:id="@+id/youtubeSection"
+        android:layout_width="match_parent"
+        android:layout_height="0dp"
+        android:layout_weight="1.8"
+        android:orientation="vertical">
+
+        <jp.fmnotifier.YoutubeGestureFrameLayout
+            android:id="@+id/youtubeContainer"
+            android:layout_width="match_parent"
+            android:layout_height="0dp"
+            android:layout_weight="1"
+            android:background="#000000">
+
+            <WebView
+                android:id="@+id/webViewYoutube"
+                android:layout_width="match_parent"
+                android:layout_height="match_parent"
+                android:background="#000000"
+                />
+        </jp.fmnotifier.YoutubeGestureFrameLayout>
+    </LinearLayout>
+
+    <!-- 友人戦募集履歴：YouTube OFF時に表示。 -->
+    <LinearLayout
+        android:id="@+id/historySection"
+        android:layout_width="match_parent"
+        android:layout_height="0dp"
+        android:layout_weight="0.2"
+        android:orientation="vertical"
+        android:paddingTop="5dp">
+
+        <TextView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="友人戦募集履歴"
+            android:textStyle="bold"
+            android:textSize="13sp"
+            android:paddingBottom="3dp" />
+
+        <ScrollView
+            android:layout_width="match_parent"
+            android:layout_height="0dp"
+            android:layout_weight="1">
+
+            <TextView
+                android:id="@+id/tvHistory"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="まだ募集履歴はありません。"
+                android:textSize="13sp"
+                android:lineSpacingExtra="3dp"
+                android:textIsSelectable="true" />
+        </ScrollView>
+    </LinearLayout>
+
+</LinearLayout>
