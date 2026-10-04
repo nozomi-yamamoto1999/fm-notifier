@@ -1065,6 +1065,11 @@ class MainActivity : AppCompatActivity() {
         RecruitmentRule("4麻", "南", "四人南"),
         RecruitmentRule("４麻", "南", "四人南"),
 
+        // 「4半」「４半」「四半」は四人南戦として扱う（「東」よりも優先度を高くする）
+        RecruitmentRule("4半", "", "四人南"),
+        RecruitmentRule("４半", "", "四人南"),
+        RecruitmentRule("四半", "", "四人南"),
+
         // 「東」を含む複合条件は半荘条件より後に判定する。
         RecruitmentRule("三麻", "東", "三人東"),
         RecruitmentRule("3麻", "東", "三人東"),
