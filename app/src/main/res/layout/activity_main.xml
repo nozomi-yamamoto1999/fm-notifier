@@ -76,7 +76,7 @@
             android:layout_marginStart="4dp"
             android:gravity="end"
             android:text="自動巡回まで: 60秒"
-            android:textSize="14sp"
+            android:textSize="12sp"
             android:textColor="#666666"
             android:singleLine="true" />
 
@@ -142,13 +142,42 @@
         android:background="#CCCCCC"
         android:layout_marginBottom="5dp" />
 
-    <!-- YouTube表示エリア：ON時はMainActivityが画面全面に切り替える。 -->
+    <!-- YouTube表示エリア：ON時は画面全体を占有しつつ、常に上部に巡回コントロールを表示 -->
     <LinearLayout
         android:id="@+id/youtubeSection"
         android:layout_width="match_parent"
         android:layout_height="0dp"
         android:layout_weight="1.8"
-        android:orientation="vertical">
+        android:orientation="vertical"
+        android:background="#000000">
+
+        <!-- YouTube視聴中でも常時表示される巡回コントロールバー -->
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="48dp"
+            android:orientation="horizontal"
+            android:gravity="center_vertical"
+            android:paddingHorizontal="10dp"
+            android:background="#1E1E1E">
+
+            <TextView
+                android:id="@+id/tvYoutubeCountdown"
+                android:layout_width="0dp"
+                android:layout_weight="1"
+                android:layout_height="wrap_content"
+                android:text="自動巡回まで: 15分"
+                android:textColor="#FFFFFF"
+                android:textSize="12sp"
+                android:singleLine="true" />
+
+            <Button
+                android:id="@+id/btnYoutubeCheckNow"
+                android:layout_width="wrap_content"
+                android:layout_height="36dp"
+                android:text="今すぐ巡回"
+                android:textSize="11sp"
+                android:paddingHorizontal="10dp" />
+        </LinearLayout>
 
         <jp.fmnotifier.YoutubeGestureFrameLayout
             android:id="@+id/youtubeContainer"

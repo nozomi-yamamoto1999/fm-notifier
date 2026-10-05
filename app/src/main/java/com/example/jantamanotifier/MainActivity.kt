@@ -43,6 +43,7 @@ import androidx.appcompat.app.AppCompatActivity
 import androidx.appcompat.widget.SwitchCompat
 import androidx.core.view.ViewCompat
 import androidx.core.view.WindowInsetsCompat
+import androidx.core.view.WindowInsetsControllerCompat
 import java.io.PrintWriter
 import java.net.HttpURLConnection
 import java.net.URL
@@ -115,6 +116,8 @@ class MainActivity : AppCompatActivity() {
     private lateinit var switchSound: SwitchCompat
     private lateinit var switchVibrate: SwitchCompat
     private lateinit var tvCountdown: TextView
+    private lateinit var tvYoutubeCountdown: TextView
+    private lateinit var btnYoutubeCheckNow: Button
     private lateinit var webViewYoutube: WebView
     private lateinit var youtubeSection: View
     private lateinit var youtubeContainer: FrameLayout
@@ -132,6 +135,7 @@ class MainActivity : AppCompatActivity() {
     private var youtubeCustomViewCallback: WebChromeClient.CustomViewCallback? = null
 
     private var youtubePageLoaded = false
+    private var statusMessageHoldSeconds = 0
 
     // 画面回転時にWebViewを再生成せず、動画再生状態を維持するための補助状態。
     private var restoringYoutubeState = false
@@ -179,7 +183,14 @@ class MainActivity : AppCompatActivity() {
         switchSound = findViewById(R.id.switchSound)
         switchVibrate = findViewById(R.id.switchVibrate)
         tvCountdown = findViewById(R.id.tvCountdown)
+        tvYoutubeCountdown = findViewById(R.id.tvYoutubeCountdown)
+        btnYoutubeCheckNow = findViewById(R.id.btnYoutubeCheckNow)
         webViewYoutube = findViewById(R.id.webViewYoutube)
+        
+        btnYoutubeCheckNow.setOnClickListener {
+            resetForegroundTimer()
+            runCheck(manual = true)
+        }
         youtubeSection = findViewById(R.id.youtubeSection)
         youtubeContainer = findViewById(R.id.youtubeContainer)
         historySection = findViewById(R.id.historySection)
@@ -282,20 +293,19 @@ class MainActivity : AppCompatActivity() {
                 .show()
         }
 
-        val intervals = arrayOf("30秒", "60秒", "3分", "5分")
+        val intervals = arrayOf("15分", "20分", "30分", "手動")
         val adapter = ArrayAdapter(this, android.R.layout.simple_spinner_dropdown_item, intervals)
         spinnerInterval.adapter = adapter
-        // 起動時の初期値は60秒。
-        spinnerInterval.setSelection(1)
+        // 起動時の初期値は15分。
+        spinnerInterval.setSelection(0)
 
         spinnerInterval.onItemSelectedListener = object : AdapterView.OnItemSelectedListener {
             override fun onItemSelected(parent: AdapterView<*>?, view: View?, position: Int, id: Long) {
                 currentIntervalMs = when (position) {
-                    0 -> 30 * 1000L
-                    1 -> 60 * 1000L
-                    2 -> 3 * 60 * 1000L
-                    3 -> 5 * 60 * 1000L
-                    else -> 30 * 1000L
+                    0 -> 15 * 60 * 1000L
+                    1 -> 20 * 60 * 1000L
+                    2 -> 30 * 60 * 1000L
+                    else -> -1L // 手動
                 }
                 resetForegroundTimer()
             }
@@ -511,6 +521,9 @@ class MainActivity : AppCompatActivity() {
                 youtubeCustomViewCallback = callback
                 webViewYoutube.visibility = View.GONE
 
+                // フルスクリーン（カスタムビュー）に入ったらステータスバーを非表示にする
+                hideSystemBars()
+
                 // YouTubeプレイヤーの全画面再生に入ったら端末を横画面にする。
                 requestedOrientation = ActivityInfo.SCREEN_ORIENTATION_LANDSCAPE
 
@@ -685,6 +698,9 @@ class MainActivity : AppCompatActivity() {
     private fun hideYoutubeCustomView() {
         val customView = youtubeCustomView ?: return
 
+        // 全画面終了時にステータスバーを再表示する
+        showSystemBars()
+
         youtubeContainer.removeView(customView)
         youtubeCustomView = null
 
@@ -737,33 +753,59 @@ class MainActivity : AppCompatActivity() {
         super.onStop()
     }
 
+    private fun updateCountdownDisplay(text: String) {
+        tvCountdown?.text = text
+        if (::tvYoutubeCountdown.isInitialized) {
+            tvYoutubeCountdown.text = text
+        }
+    }
+
     private fun startForegroundTimer() {
-        // Activityが表示されていない状態ではタイマーを開始しない。
-        if (!isActivityStarted) return
+        // Activityが表示されていない状態、または手動のみ（currentIntervalMs <= 0）ではタイマーを開始しない。
+        if (!isActivityStarted || currentIntervalMs <= 0) {
+            stopForegroundTimer()
+            if (currentIntervalMs <= 0) {
+                updateCountdownDisplay("手動更新のみ")
+            }
+            return
+        }
 
         stopForegroundTimer()
-        countdownSec = (currentIntervalMs / 1000).toInt()
+
+        // ジッター（ゆらぎ）の付与：基本間隔 ＋ 0〜30秒のランダムな追加遅延
+        val jitterMs = kotlin.random.Random.nextLong(0L, 30 * 1000L)
+        val actualIntervalMs = currentIntervalMs + jitterMs
+        countdownSec = (actualIntervalMs / 1000).toInt()
 
         countdownRunnable = object : Runnable {
             override fun run() {
-                // バックグラウンドへ移ったら、このRunnableを再登録しない。
-                if (!isActivityStarted || isFinishing || isDestroyed) {
+                // バックグラウンドへ移ったら、または手動設定へ変わったら再登録しない。
+                if (!isActivityStarted || isFinishing || isDestroyed || currentIntervalMs <= 0) {
                     stopForegroundTimer()
+                    if (currentIntervalMs <= 0) updateCountdownDisplay("手動更新のみ")
                     return
                 }
 
                 if (countdownSec <= 0) {
-                    tvCountdown?.text = "自動巡回中..."
-                    runCheck(manual = false)
-                    countdownSec = (currentIntervalMs / 1000).toInt()
+                    if (statusMessageHoldSeconds > 0) {
+                        statusMessageHoldSeconds--
+                    } else {
+                        updateCountdownDisplay("自動巡回中...")
+                        runCheck(manual = false)
+                        // 次回も新しいジッターを乗せてタイマーを設定
+                        val nextJitterMs = kotlin.random.Random.nextLong(0L, 30 * 1000L)
+                        countdownSec = ((currentIntervalMs + nextJitterMs) / 1000).toInt()
+                    }
                 } else {
-                    tvCountdown?.text = "自動巡回まで: ${countdownSec}秒"
-                    countdownSec--
+                    if (statusMessageHoldSeconds > 0) {
+                        statusMessageHoldSeconds--
+                    } else {
+                        updateCountdownDisplay("自動巡回まで: ${countdownSec}秒")
+                        countdownSec--
+                    }
                 }
 
-                // runCheck()の通信中にバックグラウンドへ移る可能性があるため、
-                // 再登録前にも表示状態を確認する。
-                if (isActivityStarted && !isFinishing && !isDestroyed) {
+                if (isActivityStarted && !isFinishing && !isDestroyed && currentIntervalMs > 0) {
                     handler.postDelayed(this, COUNTDOWN_TICK_MS)
                 }
             }
@@ -777,7 +819,7 @@ class MainActivity : AppCompatActivity() {
             handler.removeCallbacks(it)
         }
         countdownRunnable = null
-        tvCountdown?.text = "自動巡回停止中"
+        updateCountdownDisplay("自動巡回停止中")
     }
 
     private fun resetForegroundTimer() {
@@ -837,7 +879,9 @@ class MainActivity : AppCompatActivity() {
 
         if (manual) {
             btnCheckNow.isEnabled = false
-            Toast.makeText(this, "手動で巡回中...", Toast.LENGTH_SHORT).show()
+            if (!prefsYoutubeEnabled() && youtubeCustomView == null) {
+                Toast.makeText(this, "手動で巡回中...", Toast.LENGTH_SHORT).show()
+            }
         }
 
         thread {
@@ -866,12 +910,18 @@ class MainActivity : AppCompatActivity() {
                     // 新着募集を検出したら、YouTubeをOFFにして募集画面へ戻す。
                     disableYoutubeAndShowHistory()
                     playNotificationSoundAndVibrate()
+                    updateCountdownDisplay("新着募集 $addedCount 件あり")
+                    statusMessageHoldSeconds = 6
                     Toast.makeText(this@MainActivity, "新着募集を $addedCount 件取得しました！", Toast.LENGTH_SHORT).show()
                 } else if (addedCount == -2) {
                     // 1000レス超えを検出したら、YouTubeをOFFにして募集画面へ戻す。
                     disableYoutubeAndShowHistory()
+                    updateCountdownDisplay("スレッドが1000レスに到達しました")
+                    statusMessageHoldSeconds = 6
                     Toast.makeText(this@MainActivity, "このスレッドは１０００を超えました", Toast.LENGTH_SHORT).show()
                 } else if (addedCount == 0) {
+                    updateCountdownDisplay("新着募集なし")
+                    statusMessageHoldSeconds = 6
                     // YouTubeプレイヤーの全画面表示中は、巡回完了のToastを表示しない。
                     // 全画面解除・YouTube OFF・新着/1000レス超え時の復帰は従来どおり。
                     if (youtubeCustomView == null) {
@@ -1178,6 +1228,7 @@ class MainActivity : AppCompatActivity() {
         val bytes: ByteArray,
         val totalSize: Long,
         val lastModified: String?,
+        val etag: String?,
         val isFullFetch: Boolean,
         val notModified: Boolean
     )
@@ -1200,7 +1251,8 @@ class MainActivity : AppCompatActivity() {
     private fun fetchDatDifferential(
         datUrl: String,
         previousSize: Long,
-        previousLastModified: String?
+        previousLastModified: String?,
+        previousEtag: String?
     ): DatFetchResult {
         val connection = (URL(datUrl).openConnection() as HttpURLConnection).apply {
             requestMethod = "GET"
@@ -1219,12 +1271,16 @@ class MainActivity : AppCompatActivity() {
                 if (!previousLastModified.isNullOrBlank()) {
                     setRequestProperty("If-Modified-Since", previousLastModified)
                 }
+                if (!previousEtag.isNullOrBlank()) {
+                    setRequestProperty("If-None-Match", previousEtag)
+                }
             }
         }
 
         try {
             val status = connection.responseCode
             val lastModified = connection.getHeaderField("Last-Modified")
+            val etag = connection.getHeaderField("ETag")
             val contentLength = connection.getHeaderFieldLong("Content-Length", -1L)
 
             if (status == HttpURLConnection.HTTP_NOT_MODIFIED) {
@@ -1232,6 +1288,7 @@ class MainActivity : AppCompatActivity() {
                     bytes = ByteArray(0),
                     totalSize = previousSize,
                     lastModified = lastModified ?: previousLastModified,
+                    etag = etag ?: previousEtag,
                     isFullFetch = false,
                     notModified = true
                 )
@@ -1253,6 +1310,7 @@ class MainActivity : AppCompatActivity() {
                         bytes = ByteArray(0),
                         totalSize = previousSize,
                         lastModified = lastModified ?: previousLastModified,
+                        etag = etag ?: previousEtag,
                         isFullFetch = false,
                         notModified = true
                     )
@@ -1294,6 +1352,7 @@ class MainActivity : AppCompatActivity() {
                 bytes = bytes,
                 totalSize = totalSize,
                 lastModified = lastModified ?: previousLastModified,
+                etag = etag ?: previousEtag,
                 isFullFetch = isFull,
                 notModified = false
             )
@@ -1323,6 +1382,7 @@ class MainActivity : AppCompatActivity() {
                 bytes = bytes,
                 totalSize = if (contentLength >= 0L) contentLength else bytes.size.toLong(),
                 lastModified = connection.getHeaderField("Last-Modified"),
+                etag = connection.getHeaderField("ETag"),
                 isFullFetch = true,
                 notModified = false
             )
@@ -1452,9 +1512,11 @@ class MainActivity : AppCompatActivity() {
 
             val sizeKey = "dat_size_$threadId"
             val modifiedKey = "dat_modified_$threadId"
+            val etagKey = "dat_etag_$threadId"
             val countKey = "dat_post_count_$threadId"
             val previousSize = prefs.getLong(sizeKey, -1L)
             val previousModified = prefs.getString(modifiedKey, null)
+            val previousEtag = prefs.getString(etagKey, null)
             val previousPostCount = prefs.getInt(countKey, 0)
 
             // 既存履歴には投稿ヘッダー情報が保存されていないため、
@@ -1462,8 +1524,9 @@ class MainActivity : AppCompatActivity() {
             val needsHeaderMigration = !prefs.getBoolean(PREF_HISTORY_HEADER_V1, false)
             val fetchPreviousSize = if (needsHeaderMigration) -1L else previousSize
             val fetchPreviousModified = if (needsHeaderMigration) null else previousModified
+            val fetchPreviousEtag = if (needsHeaderMigration) null else previousEtag
 
-            val fetch = fetchDatDifferential(datUrl, fetchPreviousSize, fetchPreviousModified)
+            val fetch = fetchDatDifferential(datUrl, fetchPreviousSize, fetchPreviousModified, fetchPreviousEtag)
             if (!shouldContinue()) return 0
 
             if (fetch.notModified) {
@@ -1619,6 +1682,7 @@ class MainActivity : AppCompatActivity() {
             prefs.edit()
                 .putLong(sizeKey, effectiveTotalSize)
                 .putString(modifiedKey, effectiveLastModified)
+                .putString(etagKey, fetch.etag)
                 .putInt(countKey, totalPostCount)
                 .putBoolean(PREF_HISTORY_HEADER_V1, true)
                 .apply()
@@ -1763,6 +1827,17 @@ class MainActivity : AppCompatActivity() {
             Thread.setDefaultUncaughtExceptionHandler(previousUncaughtExceptionHandler)
         }
         super.onDestroy()
+    }
+
+    private fun hideSystemBars() {
+        val windowInsetsController = WindowInsetsControllerCompat(window, window.decorView)
+        windowInsetsController.systemBarsBehavior = WindowInsetsControllerCompat.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE
+        windowInsetsController.hide(WindowInsetsCompat.Type.systemBars())
+    }
+
+    private fun showSystemBars() {
+        val windowInsetsController = WindowInsetsControllerCompat(window, window.decorView)
+        windowInsetsController.show(WindowInsetsCompat.Type.systemBars())
     }
 
     private fun updateUI() {
