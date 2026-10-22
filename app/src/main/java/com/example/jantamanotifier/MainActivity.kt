@@ -293,18 +293,18 @@ class MainActivity : AppCompatActivity() {
                 .show()
         }
 
-        val intervals = arrayOf("15分", "20分", "30分", "手動")
+        val intervals = arrayOf("1分", "3分", "5分", "手動")
         val adapter = ArrayAdapter(this, android.R.layout.simple_spinner_dropdown_item, intervals)
         spinnerInterval.adapter = adapter
-        // 起動時の初期値は15分。
-        spinnerInterval.setSelection(0)
+        // 起動時の初期値は手動。
+        spinnerInterval.setSelection(3)
 
         spinnerInterval.onItemSelectedListener = object : AdapterView.OnItemSelectedListener {
             override fun onItemSelected(parent: AdapterView<*>?, view: View?, position: Int, id: Long) {
                 currentIntervalMs = when (position) {
-                    0 -> 15 * 60 * 1000L
-                    1 -> 20 * 60 * 1000L
-                    2 -> 30 * 60 * 1000L
+                    0 -> 1 * 60 * 1000L
+                    1 -> 3 * 60 * 1000L
+                    2 -> 5 * 60 * 1000L
                     else -> -1L // 手動
                 }
                 resetForegroundTimer()
@@ -574,7 +574,7 @@ class MainActivity : AppCompatActivity() {
      * ONに戻したときは自動再生せず、必ず一時停止状態にする。
      */
     private fun setYoutubeEnabled(enabled: Boolean) {
-        btnYoutubeToggle.text = if (enabled) "YouTube ON" else "YouTube OFF"
+        btnYoutubeToggle.text = if (enabled) "YouTube" else "YouTube"
 
         if (!enabled) {
             if (youtubeCustomView != null) {
@@ -922,9 +922,8 @@ class MainActivity : AppCompatActivity() {
                 } else if (addedCount == 0) {
                     updateCountdownDisplay("新着募集なし")
                     statusMessageHoldSeconds = 6
-                    // YouTubeプレイヤーの全画面表示中は、巡回完了のToastを表示しない。
-                    // 全画面解除・YouTube OFF・新着/1000レス超え時の復帰は従来どおり。
-                    if (youtubeCustomView == null) {
+                    // YouTubeが有効な間（通常視聴・ショート・全画面を問わず）は、巡回完了のToastを表示しない。
+                    if (!prefsYoutubeEnabled()) {
                         val mode = if (manual) "手動" else "自動"
                         Toast.makeText(this@MainActivity, "${mode}巡回完了（新しい募集はありませんでした）", Toast.LENGTH_SHORT).show()
                     }

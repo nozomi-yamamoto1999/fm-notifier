@@ -129,11 +129,11 @@
             android:id="@+id/btnYoutubeToggle"
             android:layout_width="wrap_content"
             android:layout_height="36dp"
-            android:layout_marginStart="6dp"
-            android:paddingStart="7dp"
-            android:paddingEnd="7dp"
-            android:text="YouTube ON"
-            android:textSize="11sp" />
+            android:layout_marginStart="8dp"
+            android:paddingStart="8dp"
+            android:paddingEnd="8dp"
+            android:text="YouTube"
+            android:textSize="14dp" />
     </LinearLayout>
 
     <View
